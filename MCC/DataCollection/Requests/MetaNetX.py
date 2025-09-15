@@ -24,28 +24,28 @@ class MetaNetXInterface(DatabaseInterface):
             self.depr_df = pd.DataFrame()
             self.prop_df = pd.DataFrame()
 
-        # TODO: make skiprows dynamic
-        base_url = "http://www.metanetx.org/cgi-bin/mnxget/mnxref/{}"
+	# @TODO : make column names dynamic (ISSUE: header line starts with a #
+        base_url = "https://www.metanetx.org/ftp/latest/{}"
         try:
-            self.xref_df = pd.read_csv(f"{self.data_path}/chem_xref.tsv", sep = "\t", skiprows = 351)
+            self.xref_df = pd.read_csv(f"{self.data_path}/chem_xref.tsv", sep = "\t", comment = "#", names=["#source","ID","description"])
         except FileNotFoundError:
             logging.warning("MetaNetX xref database not found. Downloading MetaNetX xref database, this might take a while...")
             progress_download(base_url.format("chem_xref.tsv"), f"{self.data_path}/chem_xref.tsv")
-            self.xref_df = pd.read_csv(f"{self.data_path}/chem_xref.tsv", sep = "\t", skiprows = 351)
+            self.xref_df = pd.read_csv(f"{self.data_path}/chem_xref.tsv", sep = "\t", comment = "#")
 
         try:
-            self.depr_df = pd.read_csv(f"{self.data_path}/chem_depr.tsv", sep = "\t", skiprows = 351)
+            self.depr_df = pd.read_csv(f"{self.data_path}/chem_depr.tsv", sep = "\t", comment = "#")
         except FileNotFoundError:
             logging.warning("MetaNetX depr database not found. Downloading MetaNetX depr database, this might take a while...")
             progress_download(base_url.format("chem_depr.tsv"), f"{self.data_path}/chem_depr.tsv")
-            self.depr_df = pd.read_csv(f"{self.data_path}/chem_depr.tsv", sep = "\t", skiprows = 351)
+            self.depr_df = pd.read_csv(f"{self.data_path}/chem_depr.tsv", sep = "\t", comment = "#", names=["#deprecated_ID","ID","version"])
 
         try:
-            self.prop_df = pd.read_csv(f"{self.data_path}/chem_prop.tsv", sep = "\t", skiprows = 351)
+            self.prop_df = pd.read_csv(f"{self.data_path}/chem_prop.tsv", sep = "\t", comment = "#")
         except FileNotFoundError:
             logging.warning("MetaNetX prop database not found. Downloading MetaNetX prop database, this might take a while...")
             progress_download(base_url.format("chem_prop.tsv"), f"{self.data_path}/chem_prop.tsv")
-            self.prop_df = pd.read_csv(f"{self.data_path}/chem_prop.tsv", sep = "\t", skiprows = 351)
+            self.prop_df = pd.read_csv(f"{self.data_path}/chem_prop.tsv", sep = "\t", comment = "#", names=["#ID", "name", "reference", "formula", "charge", "mass", "InChI", "InChIKey", "SMILES"])
 
     def get_assignments_by_id(self, meta_id):
         result = self.prop_dict.get(meta_id, None)
