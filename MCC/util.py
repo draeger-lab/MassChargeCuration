@@ -155,7 +155,7 @@ def get_integer_coefficients(reaction):
         non_int_found = False
         for _, coeff in reaction.metabolites.items():
             coeff *= factor
-            if not coeff.is_integer(): 
+            if not float(coeff).is_integer(): 
                 non_int_found = True
                 factor = 1/np.absolute(coeff)
                 break
