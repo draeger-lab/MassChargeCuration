@@ -17,35 +17,66 @@ class MetaNetXInterface(DatabaseInterface):
         self.prop_df.apply(fill_dict, axis = 1)
 
 
+
+    def _get_tsv_columns(self, filepath):
+        """
+        Reads the last comment line (starting with #) from a tsv file and returns the column names as a list.
+        """
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+        # Find last comment line
+        header_line = None
+        for line in reversed(lines):
+            if line.startswith("#"):
+                header_line = line.strip()
+                break
+        if header_line is None:
+            raise ValueError(f"No header line found in {filepath}")
+        # Remove leading # and split by tab
+        columns = [col.strip() for col in header_line.split("\t")]
+        return columns
+
     def load_metanetx_db(self):
         if self.no_local:
             logging.warning("MetaNetX interface is currently only implemented to download the entire database.")
             self.xref_df = pd.DataFrame()
             self.depr_df = pd.DataFrame()
             self.prop_df = pd.DataFrame()
+            return
 
-	# @TODO : make column names dynamic (ISSUE: header line starts with a #
         base_url = "https://www.metanetx.org/ftp/latest/{}"
+        # chem_xref.tsv
+        xref_path = f"{self.data_path}/chem_xref.tsv"
         try:
-            self.xref_df = pd.read_csv(f"{self.data_path}/chem_xref.tsv", sep = "\t", comment = "#", names=["#source","ID","description"])
+            xref_columns = self._get_tsv_columns(xref_path)
+            self.xref_df = pd.read_csv(xref_path, sep="\t", comment="#", names=xref_columns)
         except FileNotFoundError:
             logging.warning("MetaNetX xref database not found. Downloading MetaNetX xref database, this might take a while...")
-            progress_download(base_url.format("chem_xref.tsv"), f"{self.data_path}/chem_xref.tsv")
-            self.xref_df = pd.read_csv(f"{self.data_path}/chem_xref.tsv", sep = "\t", comment = "#")
+            progress_download(base_url.format("chem_xref.tsv"), xref_path)
+            xref_columns = self._get_tsv_columns(xref_path)
+            self.xref_df = pd.read_csv(xref_path, sep="\t", comment="#", names=xref_columns)
 
+        # chem_depr.tsv
+        depr_path = f"{self.data_path}/chem_depr.tsv"
         try:
-            self.depr_df = pd.read_csv(f"{self.data_path}/chem_depr.tsv", sep = "\t", comment = "#")
+            depr_columns = self._get_tsv_columns(depr_path)
+            self.depr_df = pd.read_csv(depr_path, sep="\t", comment="#", names=depr_columns)
         except FileNotFoundError:
             logging.warning("MetaNetX depr database not found. Downloading MetaNetX depr database, this might take a while...")
-            progress_download(base_url.format("chem_depr.tsv"), f"{self.data_path}/chem_depr.tsv")
-            self.depr_df = pd.read_csv(f"{self.data_path}/chem_depr.tsv", sep = "\t", comment = "#", names=["#deprecated_ID","ID","version"])
+            progress_download(base_url.format("chem_depr.tsv"), depr_path)
+            depr_columns = self._get_tsv_columns(depr_path)
+            self.depr_df = pd.read_csv(depr_path, sep="\t", comment="#", names=depr_columns)
 
+        # chem_prop.tsv
+        prop_path = f"{self.data_path}/chem_prop.tsv"
         try:
-            self.prop_df = pd.read_csv(f"{self.data_path}/chem_prop.tsv", sep = "\t", comment = "#")
+            prop_columns = self._get_tsv_columns(prop_path)
+            self.prop_df = pd.read_csv(prop_path, sep="\t", comment="#", names=prop_columns)
         except FileNotFoundError:
             logging.warning("MetaNetX prop database not found. Downloading MetaNetX prop database, this might take a while...")
-            progress_download(base_url.format("chem_prop.tsv"), f"{self.data_path}/chem_prop.tsv")
-            self.prop_df = pd.read_csv(f"{self.data_path}/chem_prop.tsv", sep = "\t", comment = "#", names=["#ID", "name", "reference", "formula", "charge", "mass", "InChI", "InChIKey", "SMILES"])
+            progress_download(base_url.format("chem_prop.tsv"), prop_path)
+            prop_columns = self._get_tsv_columns(prop_path)
+            self.prop_df = pd.read_csv(prop_path, sep="\t", comment="#", names=prop_columns)
 
     def get_assignments_by_id(self, meta_id):
         result = self.prop_dict.get(meta_id, None)
