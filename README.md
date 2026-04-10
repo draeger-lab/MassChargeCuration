@@ -4,7 +4,7 @@ MassChargeCuration
 Python module to automatically curate the mass and charge assignments for metabolites in a metabolic model.
 
 
-[![License (MIT Licence)](https://img.shields.io/badge/license-MIT-blue.svg?style=plastic)](https://opensource.org/licenses/MIT)
+![License](https://img.shields.io/badge/license-LGPLv3-blue.svg?style=plastic)
 ![Code size](https://img.shields.io/github/languages/code-size/Finnem/MassChargeCuration)
 ![GitHub all releases](https://img.shields.io/github/downloads/Finnem/MassChargeCuration/total)
 [![DOI](https://zenodo.org/badge/433977755.svg)](https://zenodo.org/badge/latestdoi/433977755)
@@ -59,6 +59,12 @@ df = balancer.generate_metabolite_report(f"{model.id}_metabolites")
 pd.set_option('display.max_rows', None) # displays entire DF, takes a while
 df[df["Similarity"] != "Same"]
 ```
+
+How to cite
+-----------
+
+Mostolizadeh R, Mier F, Dräger A. 2026. MCC: automated mass and charge curation at the genome scale applied to C. tuberculostearicum. Microbiol Spectr 14:e03200-24.
+https://doi.org/10.1128/spectrum.03200-24
 
 
 ☮ Licensing and distribution
