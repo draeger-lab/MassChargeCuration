@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: "MCC: automated mass and charge curation at the genome scale applied to C. tuberculostearicum"
+authors:
+  - family-names: Mostolizadeh
+    given-names: Reihaneh
+    orcid: https://orcid.org/0000-0003-2479-6851
+  - family-names: Mier
+    given-names: Finn
+    orcid: https://orcid.org/0000-0003-3409-4626
+  - family-names: Dräger
+    given-names: Andreas
+    orcid: https://orcid.org/0000-0002-1240-5553
+date-released: 2026-02-03
+version: "1.0"
+identifiers:
+  - type: doi
+    value: 10.1128/spectrum.03200-24
+message: "If you use this package, please cite: Mostolizadeh R, Mier F, Dräger A. MCC: automated mass and charge curation at the genome scale applied to C. tuberculostearicum. Microbiol Spectr. 2026 Feb 3;14(2):e0320024. doi:10.1128/spectrum.03200-24."
