@@ -43,9 +43,7 @@ exclude_patterns = ["_build"]
 copybutton_selector = "div.copyable pre"
 
 # For citations
-_bibfile = Path(__file__).parent / "library.bib"
-if _bibfile.exists():
-    bibtex_bibfiles = ["library.bib"]
+bibtex_bibfiles = ["library.bib"]
 
 
 # -- Options for HTML output -------------------------------------------------
