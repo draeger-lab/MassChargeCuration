@@ -43,14 +43,17 @@ exclude_patterns = ["_build"]
 copybutton_selector = "div.copyable pre"
 
 # For citations
-bibtex_bibfiles = ["library.bib"]
+_bibfile = Path(__file__).parent / "library.bib"
+if _bibfile.exists():
+    bibtex_bibfiles = ["library.bib"]
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
+_static_dir = Path(__file__).parent / "_static"
+html_static_path = ["_static"] if _static_dir.exists() else []
 
 # Changes code highlighting
 pygments_style = "blinds-light"

@@ -1,5 +1,6 @@
 sphinx>=8
 sphinx-rtd-theme
+accessible-pygments
 sphinx-copybutton
 nbsphinx
 ipython
