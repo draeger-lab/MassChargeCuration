@@ -38,6 +38,10 @@ class BioCycInterface(DatabaseInterface):
                     self.BioCyc_dict = json.loads(f.read())
             else:
                 self.BioCyc_dict = {}
+
+    def _persist_db(self):
+        with open(f"{self.data_path}/BioCyc.json" ,"w") as f:
+            f.write(json.dumps(self.BioCyc_dict))
             
     def get_assignments_by_id(self, meta_id):
         formula = self.BioCyc_dict.get(meta_id.replace("META:", ""), {}).get("formula", None)
@@ -68,6 +72,14 @@ class BioCycInterface(DatabaseInterface):
                 formula = formula.attrib['concise'].replace(" ", "")
                 formula = replace_capital_ids.sub(lambda pat: pat.group(1) + pat.group(2).lower(), formula)
                 formula = remove_1.sub(r"\1\3", formula)
+                self.BioCyc_dict[meta_id.replace("META:", "")] = {
+                    "names": [],
+                    "formula": formula,
+                    "charge": charge,
+                    "db_links": {},
+                    "type": "compound"
+                }
+                self._persist_db()
                 return (formula, charge)
         except ET.ParseError: #Dead links return HTML files instead of XML
             return
@@ -171,4 +183,3 @@ def parse_biocyc_class(compound_split):
             names.append(found.groups()[0].replace("<sup>", "").replace("</sup>", "").replace("<i>", "").replace("</i>", ""))
     return meta_id, {"names" : names,
                     "type" : "class"}
-

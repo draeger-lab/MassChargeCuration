@@ -23,6 +23,7 @@ class ModelSEEDInterface(DatabaseInterface):
         if self.no_local:
             logging.warning("ModelSEED interface is currently only implemented to download the entire database.")
             self.df = pd.DataFrame()
+            return
         try:
             self.df = pd.read_csv(f"{self.data_path}/ModelSEED_compounds.tsv", sep = "\t", dtype=object)
         except FileNotFoundError:

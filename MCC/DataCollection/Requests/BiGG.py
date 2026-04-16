@@ -17,6 +17,7 @@ class BiGGInterface(DatabaseInterface):
         """
         if self.no_local:
             self.BiGG_dict = {}
+            return
         try:
             with open(f"{self.data_path}/BiGG_Database.json", "r") as f:
                 self.BiGG_dict = json.loads(f.read())
@@ -39,6 +40,10 @@ class BiGGInterface(DatabaseInterface):
 
             with open(f"{self.data_path}/BiGG_Database.json", "r") as f:
                 self.BiGG_dict = json.loads(f.read())
+
+    def _persist_db(self):
+        with open(f"{self.data_path}/BiGG_Database.json", "w") as db_file:
+            db_file.write(json.dumps(self.BiGG_dict))
 
     def get_assignments_by_id(self, meta_id):
         if not meta_id.startswith("M_"):
@@ -105,6 +110,7 @@ class BiGGInterface(DatabaseInterface):
         Online fallback function if a meta_id cannot be found in the offline databases.
         """
         base_url = 'http://bigg.ucsd.edu/api/v2/universal/metabolites/{}'
+        cache_key = meta_id if meta_id.startswith("M_") else f"M_{meta_id}"
         # since generally "M_" is not included in the meta_id in BiGG
         if meta_id.startswith("M_"):
             meta_id = meta_id[2:]
@@ -124,4 +130,12 @@ class BiGGInterface(DatabaseInterface):
         except json.decoder.JSONDecodeError:
             charges = [None]
             formulae = [None]
-        return set((formula, charge) for formula in formulae for charge in charges)
+        assignments = set((formula, charge) for formula in formulae for charge in charges)
+        if len(assignments) > 0 and cache_key not in self.BiGG_dict:
+            self.BiGG_dict[cache_key] = {"names": [], "annotations": {}}
+        if len(assignments) > 0:
+            cached = self.BiGG_dict[cache_key]
+            for idx, assignment in enumerate(sorted(assignments)):
+                cached[f"online_{idx}"] = list(assignment)
+            self._persist_db()
+        return assignments

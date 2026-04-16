@@ -4,7 +4,6 @@ import logging
 import time
 from tqdm import tqdm
 import dill
-import os
 
 from ..ModelInterface.ModelInterface import ModelInterface
 from ..core import Formula, Metabolite
@@ -20,6 +19,18 @@ default_interfaces = {"metanetx.chemical" : MetaNetXInterface,
                     "seed.compound" : ModelSEEDInterface,
                     "biocyc" : BioCycInterface
                     }
+
+
+def default_data_path():
+    """
+    Returns a stable cache directory for downloaded database artifacts.
+    """
+    xdg_cache = os.environ.get("XDG_CACHE_HOME")
+    if xdg_cache:
+        cache_root = xdg_cache
+    else:
+        cache_root = os.path.join(os.path.expanduser("~"), ".cache")
+    return os.path.join(cache_root, "MassChargeCuration")
 
 
 class DataCollector:
@@ -43,7 +54,7 @@ class DataCollector:
         cache_ids (str): Optional; Name of cache file for the metabolite ids in the data_path. If given, will load the ids from the cache file instead of updating them.
     """
 
-    def __init__(self, model = None, data_path = "./data", update_ids = False, gather_information = True, used_annotations = None, no_local = False, biocyc_path = None, cache_ids = None):
+    def __init__(self, model = None, data_path = None, update_ids = False, gather_information = True, used_annotations = None, no_local = False, biocyc_path = None, cache_ids = None):
         if model is None:
             logging.warning(f"No model was passed to DataCollector. This is most likely not intended.")
         else:
@@ -51,13 +62,13 @@ class DataCollector:
         self.no_local = no_local
         self.interfaces = {}
         self.used_annotations = list(default_interfaces.keys()) if used_annotations is None else used_annotations
-        self.data_path = data_path
+        self.data_path = default_data_path() if data_path is None else data_path
         self.strict_linkback = True
         try:
             os.makedirs(self.data_path)
         except OSError:
             pass
-        self._load_default_interfaces(data_path, biocyc_path)
+        self._load_default_interfaces(self.data_path, biocyc_path)
         self.assignments = {}
         self.allow_undefined_charge = True
         if update_ids:

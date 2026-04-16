@@ -7,7 +7,7 @@ from ..ModelInterface.ModelInterface import ModelInterface
 from .satCore import SatCore
 from .formulaOptimizer import FormulaOptimizer
 from .adherenceOptimizer import AdherenceOptimizer
-from ..DataCollection.DataCollection import DataCollector
+from ..DataCollection.DataCollection import DataCollector, default_data_path
 from ..util import  adjust_proton_count
 import logging
 import time
@@ -33,12 +33,14 @@ class MassChargeCuration:
         cache_ids (list): List of ids to cache.
 
     """
-    def __init__(self, model, data_collector = None, data_path = "./data", fixed_assignments = None, fixed_reactions = None, run_optimization = True, cache_ids = None, **kw):
+    def __init__(self, model, data_collector = None, data_path = None, fixed_assignments = None, fixed_reactions = None, run_optimization = True, cache_ids = None, **kw):
         total_time = time.process_time()
         logging.info(f"Setting up model system.")
         self.model_interface = ModelInterface(model)
         self.pseudo_reactions = self.model_interface.get_pseudo_reactions()
         self.original_model_interface = self.model_interface.copy()
+        if data_path is None:
+            data_path = default_data_path()
         logging.info(f"Collecting Data...")
         t = time.process_time()
         self.data_collector = DataCollector(model, data_path, cache_ids = cache_ids, **kw) if data_collector is None else data_collector
