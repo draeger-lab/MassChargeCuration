@@ -30,6 +30,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
     "nbsphinx",
+    "myst_parser",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinxcontrib.bibtex",
     "sphinx.ext.viewcode",
@@ -59,6 +60,12 @@ numfig = True
 
 # Explicitly assign the master document
 master_doc = "index"
+
+# Support both reStructuredText and Markdown sources.
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 
 # -- Autodoc -----------------------------------------------------------------

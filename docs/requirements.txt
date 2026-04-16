@@ -1,0 +1,7 @@
+sphinx>=8
+sphinx-rtd-theme
+sphinx-copybutton
+nbsphinx
+ipython
+sphinxcontrib-bibtex
+myst-parser
