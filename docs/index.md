@@ -4,6 +4,6 @@ Welcome to the MassChargeCuration documentation.
 
 ```{toctree}
 :maxdepth: 2
-:caption: Contents:
+:caption: MassChargeCuration Documentation
 
 ```

@@ -52,6 +52,11 @@ bibtex_bibfiles = ["library.bib"]
 html_theme = "sphinx_rtd_theme"
 _static_dir = Path(__file__).parent / "_static"
 html_static_path = ["_static"] if _static_dir.exists() else []
+html_css_files = ["custom_theme.css"]
+html_theme_options = {
+    "display_version": False,
+}
+html_favicon = None
 
 # Changes code highlighting
 pygments_style = "blinds-light"
