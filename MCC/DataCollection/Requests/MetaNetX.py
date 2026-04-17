@@ -1,6 +1,7 @@
 import requests
 import logging
 import time
+import os
 import pandas as pd
 from difflib import SequenceMatcher
 from ...util import progress_download
@@ -17,11 +18,17 @@ class MetaNetXInterface(DatabaseInterface):
         self.prop_dict = {}
         map_start = time.perf_counter()
         logging.info("Building MetaNetX property lookup dictionary...")
-
-        def fill_dict(row):
-            self.prop_dict[row["#ID"]] = (row["formula"], row["charge"])
-
-        self.prop_df.apply(fill_dict, axis=1)
+        if len(self.prop_df) > 0:
+            self.prop_dict = dict(
+                zip(
+                    self.prop_df["#ID"],
+                    zip(self.prop_df["formula"], self.prop_df["charge"]),
+                )
+            )
+        else:
+            logging.info(
+                "MetaNetX property table is empty; lookup dictionary remains empty."
+            )
         logging.info(
             f"[{time.perf_counter() - map_start:.3f} s] Built MetaNetX property lookup with {len(self.prop_dict)} entries."
         )
@@ -33,19 +40,60 @@ class MetaNetXInterface(DatabaseInterface):
         """
         Reads the last comment line (starting with #) from a tsv file and returns the column names as a list.
         """
-        with open(filepath, "r") as f:
-            lines = f.readlines()
-        # Find last comment line
         header_line = None
-        for line in reversed(lines):
-            if line.startswith("#"):
-                header_line = line.strip()
-                break
+        with open(filepath, "r") as f:
+            for line in f:
+                if line.startswith("#"):
+                    header_line = line.strip()
+                elif header_line is not None:
+                    break
         if header_line is None:
             raise ValueError(f"No header line found in {filepath}")
         # Remove leading # and split by tab
         columns = [col.strip() for col in header_line.split("\t")]
         return columns
+
+    def _load_cached_table(self, table_name, tsv_path):
+        cache_path = f"{tsv_path}.pkl"
+        tsv_mtime = os.path.getmtime(tsv_path)
+
+        if os.path.exists(cache_path):
+            cache_mtime = os.path.getmtime(cache_path)
+            if cache_mtime >= tsv_mtime:
+                cache_load_start = time.perf_counter()
+                logging.info(
+                    f"Loading MetaNetX {table_name} binary cache from {cache_path}"
+                )
+                try:
+                    df = pd.read_pickle(cache_path)
+                    logging.info(
+                        f"[{time.perf_counter() - cache_load_start:.3f} s] Loaded MetaNetX {table_name} binary cache with {len(df)} rows."
+                    )
+                    return df
+                except Exception as exc:
+                    logging.warning(
+                        f"Failed loading MetaNetX {table_name} binary cache ({exc}). Re-parsing TSV."
+                    )
+
+        tsv_load_start = time.perf_counter()
+        logging.info(f"Parsing MetaNetX {table_name} TSV from {tsv_path}")
+        tsv_columns = self._get_tsv_columns(tsv_path)
+        df = pd.read_csv(tsv_path, sep="\t", comment="#", names=tsv_columns)
+        logging.info(
+            f"[{time.perf_counter() - tsv_load_start:.3f} s] Parsed MetaNetX {table_name} TSV with {len(df)} rows."
+        )
+
+        try:
+            write_start = time.perf_counter()
+            df.to_pickle(cache_path)
+            logging.info(
+                f"[{time.perf_counter() - write_start:.3f} s] Wrote MetaNetX {table_name} binary cache to {cache_path}"
+            )
+        except Exception as exc:
+            logging.warning(
+                f"Failed writing MetaNetX {table_name} binary cache ({exc}). Continuing with TSV-backed dataframe."
+            )
+        return df
 
     def load_metanetx_db(self):
         start = time.perf_counter()
@@ -62,68 +110,38 @@ class MetaNetXInterface(DatabaseInterface):
         # chem_xref.tsv
         xref_path = f"{self.data_path}/chem_xref.tsv"
         try:
-            logging.info(f"Loading MetaNetX xref cache from {xref_path}")
-            xref_columns = self._get_tsv_columns(xref_path)
-            self.xref_df = pd.read_csv(
-                xref_path, sep="\t", comment="#", names=xref_columns
-            )
-            logging.info(f"Loaded MetaNetX xref cache with {len(self.xref_df)} rows.")
+            self.xref_df = self._load_cached_table("xref", xref_path)
         except FileNotFoundError:
             logging.warning(
                 "MetaNetX xref database not found. Downloading MetaNetX xref database, this might take a while..."
             )
             progress_download(base_url.format("chem_xref.tsv"), xref_path)
-            xref_columns = self._get_tsv_columns(xref_path)
-            self.xref_df = pd.read_csv(
-                xref_path, sep="\t", comment="#", names=xref_columns
-            )
-            logging.info(
-                f"Downloaded and loaded MetaNetX xref cache with {len(self.xref_df)} rows."
-            )
+            self.xref_df = self._load_cached_table("xref", xref_path)
+            logging.info("Downloaded and initialized MetaNetX xref cache.")
 
         # chem_depr.tsv
         depr_path = f"{self.data_path}/chem_depr.tsv"
         try:
-            logging.info(f"Loading MetaNetX depr cache from {depr_path}")
-            depr_columns = self._get_tsv_columns(depr_path)
-            self.depr_df = pd.read_csv(
-                depr_path, sep="\t", comment="#", names=depr_columns
-            )
-            logging.info(f"Loaded MetaNetX depr cache with {len(self.depr_df)} rows.")
+            self.depr_df = self._load_cached_table("depr", depr_path)
         except FileNotFoundError:
             logging.warning(
                 "MetaNetX depr database not found. Downloading MetaNetX depr database, this might take a while..."
             )
             progress_download(base_url.format("chem_depr.tsv"), depr_path)
-            depr_columns = self._get_tsv_columns(depr_path)
-            self.depr_df = pd.read_csv(
-                depr_path, sep="\t", comment="#", names=depr_columns
-            )
-            logging.info(
-                f"Downloaded and loaded MetaNetX depr cache with {len(self.depr_df)} rows."
-            )
+            self.depr_df = self._load_cached_table("depr", depr_path)
+            logging.info("Downloaded and initialized MetaNetX depr cache.")
 
         # chem_prop.tsv
         prop_path = f"{self.data_path}/chem_prop.tsv"
         try:
-            logging.info(f"Loading MetaNetX prop cache from {prop_path}")
-            prop_columns = self._get_tsv_columns(prop_path)
-            self.prop_df = pd.read_csv(
-                prop_path, sep="\t", comment="#", names=prop_columns
-            )
-            logging.info(f"Loaded MetaNetX prop cache with {len(self.prop_df)} rows.")
+            self.prop_df = self._load_cached_table("prop", prop_path)
         except FileNotFoundError:
             logging.warning(
                 "MetaNetX prop database not found. Downloading MetaNetX prop database, this might take a while..."
             )
             progress_download(base_url.format("chem_prop.tsv"), prop_path)
-            prop_columns = self._get_tsv_columns(prop_path)
-            self.prop_df = pd.read_csv(
-                prop_path, sep="\t", comment="#", names=prop_columns
-            )
-            logging.info(
-                f"Downloaded and loaded MetaNetX prop cache with {len(self.prop_df)} rows."
-            )
+            self.prop_df = self._load_cached_table("prop", prop_path)
+            logging.info("Downloaded and initialized MetaNetX prop cache.")
         logging.info(f"[{time.perf_counter() - start:.3f} s] MetaNetX database ready.")
 
     def get_assignments_by_id(self, meta_id):
