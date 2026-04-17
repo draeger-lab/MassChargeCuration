@@ -1,22 +1,33 @@
 import requests
 import logging
+import time
 import pandas as pd
 from difflib import SequenceMatcher
 from ...util import progress_download
 
 from .databaseInterface import DatabaseInterface
 
+
 class MetaNetXInterface(DatabaseInterface):
-    def __init__(self, data_path, no_local = False):
+    def __init__(self, data_path, no_local=False):
+        init_start = time.perf_counter()
         self.data_path = data_path
         self.no_local = no_local
         self.load_metanetx_db()
         self.prop_dict = {}
+        map_start = time.perf_counter()
+        logging.info("Building MetaNetX property lookup dictionary...")
+
         def fill_dict(row):
-            self.prop_dict[row['#ID']] = (row["formula"], row["charge"])
-        self.prop_df.apply(fill_dict, axis = 1)
+            self.prop_dict[row["#ID"]] = (row["formula"], row["charge"])
 
-
+        self.prop_df.apply(fill_dict, axis=1)
+        logging.info(
+            f"[{time.perf_counter() - map_start:.3f} s] Built MetaNetX property lookup with {len(self.prop_dict)} entries."
+        )
+        logging.info(
+            f"[{time.perf_counter() - init_start:.3f} s] MetaNetX interface initialization complete."
+        )
 
     def _get_tsv_columns(self, filepath):
         """
@@ -37,8 +48,11 @@ class MetaNetXInterface(DatabaseInterface):
         return columns
 
     def load_metanetx_db(self):
+        start = time.perf_counter()
         if self.no_local:
-            logging.warning("MetaNetX interface is currently only implemented to download the entire database.")
+            logging.warning(
+                "MetaNetX interface is currently only implemented to download the entire database."
+            )
             self.xref_df = pd.DataFrame()
             self.depr_df = pd.DataFrame()
             self.prop_df = pd.DataFrame()
@@ -48,35 +62,69 @@ class MetaNetXInterface(DatabaseInterface):
         # chem_xref.tsv
         xref_path = f"{self.data_path}/chem_xref.tsv"
         try:
+            logging.info(f"Loading MetaNetX xref cache from {xref_path}")
             xref_columns = self._get_tsv_columns(xref_path)
-            self.xref_df = pd.read_csv(xref_path, sep="\t", comment="#", names=xref_columns)
+            self.xref_df = pd.read_csv(
+                xref_path, sep="\t", comment="#", names=xref_columns
+            )
+            logging.info(f"Loaded MetaNetX xref cache with {len(self.xref_df)} rows.")
         except FileNotFoundError:
-            logging.warning("MetaNetX xref database not found. Downloading MetaNetX xref database, this might take a while...")
+            logging.warning(
+                "MetaNetX xref database not found. Downloading MetaNetX xref database, this might take a while..."
+            )
             progress_download(base_url.format("chem_xref.tsv"), xref_path)
             xref_columns = self._get_tsv_columns(xref_path)
-            self.xref_df = pd.read_csv(xref_path, sep="\t", comment="#", names=xref_columns)
+            self.xref_df = pd.read_csv(
+                xref_path, sep="\t", comment="#", names=xref_columns
+            )
+            logging.info(
+                f"Downloaded and loaded MetaNetX xref cache with {len(self.xref_df)} rows."
+            )
 
         # chem_depr.tsv
         depr_path = f"{self.data_path}/chem_depr.tsv"
         try:
+            logging.info(f"Loading MetaNetX depr cache from {depr_path}")
             depr_columns = self._get_tsv_columns(depr_path)
-            self.depr_df = pd.read_csv(depr_path, sep="\t", comment="#", names=depr_columns)
+            self.depr_df = pd.read_csv(
+                depr_path, sep="\t", comment="#", names=depr_columns
+            )
+            logging.info(f"Loaded MetaNetX depr cache with {len(self.depr_df)} rows.")
         except FileNotFoundError:
-            logging.warning("MetaNetX depr database not found. Downloading MetaNetX depr database, this might take a while...")
+            logging.warning(
+                "MetaNetX depr database not found. Downloading MetaNetX depr database, this might take a while..."
+            )
             progress_download(base_url.format("chem_depr.tsv"), depr_path)
             depr_columns = self._get_tsv_columns(depr_path)
-            self.depr_df = pd.read_csv(depr_path, sep="\t", comment="#", names=depr_columns)
+            self.depr_df = pd.read_csv(
+                depr_path, sep="\t", comment="#", names=depr_columns
+            )
+            logging.info(
+                f"Downloaded and loaded MetaNetX depr cache with {len(self.depr_df)} rows."
+            )
 
         # chem_prop.tsv
         prop_path = f"{self.data_path}/chem_prop.tsv"
         try:
+            logging.info(f"Loading MetaNetX prop cache from {prop_path}")
             prop_columns = self._get_tsv_columns(prop_path)
-            self.prop_df = pd.read_csv(prop_path, sep="\t", comment="#", names=prop_columns)
+            self.prop_df = pd.read_csv(
+                prop_path, sep="\t", comment="#", names=prop_columns
+            )
+            logging.info(f"Loaded MetaNetX prop cache with {len(self.prop_df)} rows.")
         except FileNotFoundError:
-            logging.warning("MetaNetX prop database not found. Downloading MetaNetX prop database, this might take a while...")
+            logging.warning(
+                "MetaNetX prop database not found. Downloading MetaNetX prop database, this might take a while..."
+            )
             progress_download(base_url.format("chem_prop.tsv"), prop_path)
             prop_columns = self._get_tsv_columns(prop_path)
-            self.prop_df = pd.read_csv(prop_path, sep="\t", comment="#", names=prop_columns)
+            self.prop_df = pd.read_csv(
+                prop_path, sep="\t", comment="#", names=prop_columns
+            )
+            logging.info(
+                f"Downloaded and loaded MetaNetX prop cache with {len(self.prop_df)} rows."
+            )
+        logging.info(f"[{time.perf_counter() - start:.3f} s] MetaNetX database ready.")
 
     def get_assignments_by_id(self, meta_id):
         result = self.prop_dict.get(meta_id, None)
@@ -85,14 +133,23 @@ class MetaNetXInterface(DatabaseInterface):
         return [result]
 
     def search_identifier(self, names, other_ids):
-        id_mapping = {"metanetx.chemical" : "mnx", # somewhat redundant
-                    "bigg.metabolite" : "bigg.metabolite",
-                    "seed.compound" : "seed.compound",
-                    "sabiork.compound": "sabiork.compound",
-                    "biocyc" : "metacyc.compound" 
-                    }
-        other_ids = [f'{id_mapping[db_id]}:{meta_id.replace("META:", "")}' for db_id, meta_ids in other_ids.items() for meta_id in meta_ids["ids"]]
-        return list(self.xref_df["ID"][self.xref_df["#source"].apply(lambda x: x in other_ids)].unique())
+        id_mapping = {
+            "metanetx.chemical": "mnx",  # somewhat redundant
+            "bigg.metabolite": "bigg.metabolite",
+            "seed.compound": "seed.compound",
+            "sabiork.compound": "sabiork.compound",
+            "biocyc": "metacyc.compound",
+        }
+        other_ids = [
+            f"{id_mapping[db_id]}:{meta_id.replace('META:', '')}"
+            for db_id, meta_ids in other_ids.items()
+            for meta_id in meta_ids["ids"]
+        ]
+        return list(
+            self.xref_df["ID"][
+                self.xref_df["#source"].apply(lambda x: x in other_ids)
+            ].unique()
+        )
 
     def update_id(self, id):
         """
@@ -113,14 +170,14 @@ class MetaNetXInterface(DatabaseInterface):
             remove = set()
             new = set()
             for cur_id in current_ids:
-                depr_rows = self.depr_df[self.depr_df['#deprecated_ID'] == (cur_id)]
+                depr_rows = self.depr_df[self.depr_df["#deprecated_ID"] == (cur_id)]
                 if len(depr_rows) > 0:
                     remove.add(cur_id)
                     new.update([metabolite_id for metabolite_id in depr_rows["ID"]])
             current_ids.update(new)
             current_ids -= remove
             old_ids.update(remove)
-        return old_ids, current_ids 
+        return old_ids, current_ids
 
     def update_ids(self, ids, names):
         new_ids = set()
@@ -132,47 +189,63 @@ class MetaNetXInterface(DatabaseInterface):
             filtered_new = []
             for mid in new:
                 found_names = self.prop_df["name"][self.prop_df["#ID"] == mid]
-                if len(found_names) == 0: continue
-                max_sim = max(found_names.apply(lambda x : max([similar(x, name) for name in names_and_ids])))
+                if len(found_names) == 0:
+                    continue
+                max_sim = max(
+                    found_names.apply(
+                        lambda x: max([similar(x, name) for name in names_and_ids])
+                    )
+                )
                 filtered_new.append((max_sim, mid))
-            if len(filtered_new) == 0: continue
+            if len(filtered_new) == 0:
+                continue
             max_similarity = max([scored[0] for scored in filtered_new])
-            if (max_similarity > .8) and (len(new) > 1):
-                filtered_meta_ids = [scored[1] for scored in filtered_new if scored[0] > max_similarity * .9]
-                removed_meta_ids = [scored[1] for scored in filtered_new if scored[0] <= max_similarity * .9]
+            if (max_similarity > 0.8) and (len(new) > 1):
+                filtered_meta_ids = [
+                    scored[1]
+                    for scored in filtered_new
+                    if scored[0] > max_similarity * 0.9
+                ]
+                removed_meta_ids = [
+                    scored[1]
+                    for scored in filtered_new
+                    if scored[0] <= max_similarity * 0.9
+                ]
             else:
                 filtered_meta_ids = []
                 removed_meta_ids = [scored[1] for scored in filtered_new]
-                #logging.warning(f"Max metanetX similarity for {metabolite.id} was less then .8 with {filtered_meta_ids} chosen.")
+                # logging.warning(f"Max metanetX similarity for {metabolite.id} was less then .8 with {filtered_meta_ids} chosen.")
             new_ids.update(filtered_meta_ids)
             new_ids.difference_update(old)
             new_ids.difference_update(removed_meta_ids)
             old_ids.update(removed_meta_ids)
             old_ids.update(old)
         return old_ids, new_ids
-            
-        
 
     def get_other_references(self, id, relevant_dbs):
-        id_mapping = {"mnx" : "metanetx.chemical", # somewhat redundant
-                 "bigg.metabolite" : "bigg.metabolite",
-                 "seed.compound" : "seed.compound",
-                 "sabiork.compound": "sabiork.compound",
-                 "metacyc.compound" : "biocyc"  
-                 }
+        id_mapping = {
+            "mnx": "metanetx.chemical",  # somewhat redundant
+            "bigg.metabolite": "bigg.metabolite",
+            "seed.compound": "seed.compound",
+            "sabiork.compound": "sabiork.compound",
+            "metacyc.compound": "biocyc",
+        }
         references = {}
         out_refs = self.xref_df["#source"][self.xref_df["ID"] == id]
+
         def split_into_identifiers(s):
             colon_index = s.find(":")
             if colon_index > -1:
                 db_identifier = s[:colon_index]
-                meta_id = s[colon_index + 1:]
-                if (db_identifier in id_mapping):
+                meta_id = s[colon_index + 1 :]
+                if db_identifier in id_mapping:
                     db_ref = references.get(db_identifier, set())
                     db_ref.add(meta_id.replace("META:", ""))
                     references[id_mapping[db_identifier]] = db_ref
+
         out_refs.apply(split_into_identifiers)
         return references
+
 
 def similar(a, b):
     """
@@ -187,5 +260,6 @@ def similar(a, b):
         String similarity.
     """
     if a.startswith("L ") or a.startswith("L-"):
-        if not(b.startswith("L ") or b.startswith("L-")): return 0
+        if not (b.startswith("L ") or b.startswith("L-")):
+            return 0
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()

@@ -82,6 +82,23 @@ class MassChargeCuration:
         self.adjust_protons()
         self.total_time = time.process_time() - total_time
 
+    @classmethod
+    def warm_up(cls, data_path = None, used_annotations = None, no_local = False, biocyc_path = None):
+        """
+        Preloads and caches the configured external database artifacts.
+
+        This can be used before running curation so first-use downloads and local consolidation
+        happen in a dedicated warm-up step.
+        """
+        if data_path is None:
+            data_path = default_data_path()
+        return DataCollector.warm_up(
+            data_path = data_path,
+            used_annotations = used_annotations,
+            no_local = no_local,
+            biocyc_path = biocyc_path,
+        )
+
     def reintroduce_wildcards(self):
         # get any unknown metabolites
         wildcard_metabolites = set()

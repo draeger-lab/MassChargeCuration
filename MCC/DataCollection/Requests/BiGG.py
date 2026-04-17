@@ -1,11 +1,13 @@
 import json
 import requests
 import os
+import logging
 from ...ModelInterface.ModelInterface import ModelInterface
 from .databaseInterface import DatabaseInterface
 
+
 class BiGGInterface(DatabaseInterface):
-    def __init__(self, data_path, no_local = False, biocyc_base_path = None):
+    def __init__(self, data_path, no_local=False, biocyc_base_path=None):
         self.data_path = data_path
         self.no_local = no_local
         self.biocyc_base_path = biocyc_base_path
@@ -16,16 +18,28 @@ class BiGGInterface(DatabaseInterface):
         Loads in (or on demand downloads and creates) the BiGG database file.
         """
         if self.no_local:
+            logging.info(
+                "BiGG local cache disabled (no_local=True); using online fallback only."
+            )
             self.BiGG_dict = {}
             return
         try:
+            logging.info(f"Loading BiGG cache from {self.data_path}/BiGG_Database.json")
             with open(f"{self.data_path}/BiGG_Database.json", "r") as f:
                 self.BiGG_dict = json.loads(f.read())
+            logging.info(
+                f"Loaded BiGG cache with {len(self.BiGG_dict)} metabolite entries."
+            )
         except FileNotFoundError:
-            result = requests.get("http://bigg.ucsd.edu/api/v2/models") 
+            logging.info(
+                "BiGG cache not found. Downloading BiGG models and consolidating local cache; this may take a while."
+            )
+            result = requests.get("http://bigg.ucsd.edu/api/v2/models")
             if result.status_code != 200:
                 result.raise_for_status()  # Will only raise for 4xx codes, so...
-                raise RuntimeError(f"Request to http://bigg.ucsd.edu/api/v2/models returned status code {result.status_code}")
+                raise RuntimeError(
+                    f"Request to http://bigg.ucsd.edu/api/v2/models returned status code {result.status_code}"
+                )
             base_url = "http://bigg.ucsd.edu/static/models/{}.xml"
             base_path = f"{self.data_path}/BiGG_models"
             try:
@@ -40,6 +54,9 @@ class BiGGInterface(DatabaseInterface):
 
             with open(f"{self.data_path}/BiGG_Database.json", "r") as f:
                 self.BiGG_dict = json.loads(f.read())
+            logging.info(
+                f"Built BiGG cache with {len(self.BiGG_dict)} metabolite entries."
+            )
 
     def _persist_db(self):
         with open(f"{self.data_path}/BiGG_Database.json", "w") as db_file:
@@ -51,22 +68,34 @@ class BiGGInterface(DatabaseInterface):
         sub_dict = self.BiGG_dict.get(meta_id, {})
         formulae = set()
         for key, value in sub_dict.items():
-            if key in ["names", "annotations"] or (value[0] == ""): continue
+            if key in ["names", "annotations"] or (value[0] == ""):
+                continue
             else:
                 formulae.add(tuple(value))
         if len(formulae) == 0:
             formulae = self.get_BiGG_information(meta_id)
-        return formulae 
-    
+        return formulae
+
     def search_identifier(self, names, other_ids):
         found = set()
         for key, values in self.BiGG_dict.items():
-            if any(name in values['names'] for name in names) or any([(db_id in values['annotations']) and values['annotations'][db_id] == other_ids[db_id] for db_id in other_ids]):
+            if any(name in values["names"] for name in names) or any(
+                [
+                    (db_id in values["annotations"])
+                    and values["annotations"][db_id] == other_ids[db_id]
+                    for db_id in other_ids
+                ]
+            ):
                 found.add(key)
         return list(found)
 
     def get_other_references(self, id, relevant_dbs):
-        return {database_id: self.BiGG_dict.get(id, {}).get("annotations", {}).get(database_id, None) for database_id in relevant_dbs}
+        return {
+            database_id: self.BiGG_dict.get(id, {})
+            .get("annotations", {})
+            .get(database_id, None)
+            for database_id in relevant_dbs
+        }
 
     def consolidate_BiGG(self):
         """
@@ -75,15 +104,23 @@ class BiGGInterface(DatabaseInterface):
         BiGG_Database = {}
         incomplete_models = {}
         for model_name in os.listdir(f"{self.data_path}/BiGG_models")[:3]:
-            model_interface = ModelInterface(f"{self.data_path}/BiGG_models/{model_name}")
+            model_interface = ModelInterface(
+                f"{self.data_path}/BiGG_models/{model_name}"
+            )
             for metabolite in model_interface.metabolites.values():
                 meta_dict = BiGG_Database.get(metabolite.id[:-2], {})
                 if (metabolite.formula is None) or (metabolite.charge is None):
                     model_dict = incomplete_models.get(model_name, {})
-                    model_dict[metabolite.id] = (str(metabolite.formula), metabolite.charge)
+                    model_dict[metabolite.id] = (
+                        str(metabolite.formula),
+                        metabolite.charge,
+                    )
                     incomplete_models[model_name] = model_dict
                     continue
-                meta_dict[model_name[:-4]] = (str(metabolite.formula), metabolite.charge)
+                meta_dict[model_name[:-4]] = (
+                    str(metabolite.formula),
+                    metabolite.charge,
+                )
                 annotations = meta_dict.get("annotations", {})
                 names = meta_dict.get("names", set())
                 names.add(metabolite.name)
@@ -99,17 +136,17 @@ class BiGGInterface(DatabaseInterface):
         for metabolite in BiGG_Database:
             for key, value in BiGG_Database[metabolite]["annotations"].items():
                 BiGG_Database[metabolite]["annotations"][key] = list(value)
-            BiGG_Database[metabolite]["names"] = list(BiGG_Database[metabolite]["names"])
+            BiGG_Database[metabolite]["names"] = list(
+                BiGG_Database[metabolite]["names"]
+            )
         with open(f"{self.data_path}/BiGG_Database.json", "w") as db_file:
-            db_file.write(json.dumps(BiGG_Database)) 
-
-    
+            db_file.write(json.dumps(BiGG_Database))
 
     def get_BiGG_information(self, meta_id):
         """
         Online fallback function if a meta_id cannot be found in the offline databases.
         """
-        base_url = 'http://bigg.ucsd.edu/api/v2/universal/metabolites/{}'
+        base_url = "http://bigg.ucsd.edu/api/v2/universal/metabolites/{}"
         cache_key = meta_id if meta_id.startswith("M_") else f"M_{meta_id}"
         # since generally "M_" is not included in the meta_id in BiGG
         if meta_id.startswith("M_"):
@@ -118,11 +155,13 @@ class BiGGInterface(DatabaseInterface):
 
         if result.status_code != 200:
             result.raise_for_status()  # Will only raise for 4xx codes, so...
-            raise RuntimeError(f"Request to {base_url.format(meta_id)} returned status code {result.status_code}")
+            raise RuntimeError(
+                f"Request to {base_url.format(meta_id)} returned status code {result.status_code}"
+            )
         try:
             metabolite_json = result.json()
-            charges = metabolite_json['charges']
-            formulae = metabolite_json['formulae']
+            charges = metabolite_json["charges"]
+            formulae = metabolite_json["formulae"]
             if len(charges) == 0:
                 charges = [None]
             if len(formulae) == 0:
@@ -130,7 +169,9 @@ class BiGGInterface(DatabaseInterface):
         except json.decoder.JSONDecodeError:
             charges = [None]
             formulae = [None]
-        assignments = set((formula, charge) for formula in formulae for charge in charges)
+        assignments = set(
+            (formula, charge) for formula in formulae for charge in charges
+        )
         if len(assignments) > 0 and cache_key not in self.BiGG_dict:
             self.BiGG_dict[cache_key] = {"names": [], "annotations": {}}
         if len(assignments) > 0:
