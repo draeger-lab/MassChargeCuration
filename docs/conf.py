@@ -9,7 +9,7 @@
 project = "MassChargeCuration"
 copyright = "2026, Finn Mier and Reihaneh Mostolizadeh"
 author = "Finn Mier and Reihaneh Mostolizadeh"
-release = "1.0.1"
+release = "1.0.2"
 
 # -- Path setup --------------------------------------------------------------
 
