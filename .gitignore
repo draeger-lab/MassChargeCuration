@@ -4,3 +4,6 @@ Example/data/
 **/*.bak
 **/*.egg-info/
 **/*.pyc
+
+# exclude locally cached data files
+**/data/**

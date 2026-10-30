@@ -83,3 +83,17 @@ MassChargeCuration is Copyright (C) 2021-2022 by the following organization:
 The University of Tuebingen, Germany
 
 MassChargeCuration is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation.
+
+## Database link check
+
+Run the lightweight live endpoint check with:
+
+```sh
+python -m pip install requests
+python -m unittest discover -s tests -p 'test_database_links.py' -v
+```
+
+The `Database links` GitHub Actions workflow runs this check on pushes to `main`
+and can also be started manually through `workflow_dispatch`. It does not install
+MCC or download full databases. External-service failures and timeouts fail the
+check; HTTP success does not establish schema compatibility.
