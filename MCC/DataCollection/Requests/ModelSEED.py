@@ -2,6 +2,8 @@ import re
 import requests
 import logging
 import time
+from io import StringIO
+from pathlib import Path
 import pandas as pd
 
 from .databaseInterface import DatabaseInterface
@@ -40,15 +42,33 @@ class ModelSEEDInterface(DatabaseInterface):
             )
             logging.info(f"Loaded ModelSEED cache with {len(self.df)} rows.")
         except FileNotFoundError:
-            base_url = "https://raw.githubusercontent.com/ModelSEED/ModelSEEDDatabase/master/Biochemistry/compounds.tsv"
-            logging.info("ModelSEED cache not found. Downloading compounds.tsv...")
-            result = requests.get(base_url)
+            # ModelSEED now publishes compound_00.tsv, compound_01.tsv, etc.
+            base_url = "https://api.github.com/repos/ModelSEED/ModelSEEDDatabase/contents/Biochemistry"
+            logging.info("ModelSEED cache not found. Downloading compound tables...")
+            result = requests.get(base_url, timeout=60)
             result.raise_for_status()
-            with open(f"{self.data_path}/ModelSEED_compounds.tsv", "w") as f:
-                f.write(result.text)
-            self.df = pd.read_csv(
-                f"{self.data_path}/ModelSEED_compounds.tsv", sep="\t", dtype=object
+            files = sorted(
+                (entry for entry in result.json()
+                 if re.fullmatch(r"compound_\d+\.tsv", entry["name"])),
+                key=lambda entry: entry["name"],
             )
+            if not files:
+                raise RuntimeError("No ModelSEED compound tables found.")
+            tables = []
+            for entry in files:
+                result = requests.get(entry["download_url"], timeout=60)
+                result.raise_for_status()
+                table = pd.read_csv(StringIO(result.text), sep="\t", dtype=object)
+                required = {"id", "formula", "charge", "aliases", "name", "abbreviation"}
+                if table.empty or not required.issubset(table.columns):
+                    raise ValueError(f"Invalid ModelSEED compound table: {entry['name']}")
+                tables.append(table)
+            self.df = pd.concat(tables, ignore_index=True)
+            # Publish only a complete table; failed downloads leave no partial cache.
+            target = Path(self.data_path) / "ModelSEED_compounds.tsv"
+            temporary = target.with_suffix(".tsv.part")
+            self.df.to_csv(temporary, sep="\t", index=False)
+            temporary.replace(target)
             logging.info(
                 f"Downloaded and loaded ModelSEED cache with {len(self.df)} rows."
             )
