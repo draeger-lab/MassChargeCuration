@@ -3,8 +3,11 @@
 Run: python -m unittest discover -s tests -p 'test_database_links.py' -v
 Requires network access. Failures report HTTP, authentication, or connection issues;
 HTTP success alone does not validate file contents or response schemas.
+BioCyc is optional and skipped by default. Set MCC_TEST_BIOCYC=1 to include its
+live endpoints; explicitly enabled checks still require HTTP 200.
 """
 
+import os
 import unittest
 
 import requests
@@ -30,6 +33,8 @@ class DatabaseLinkTests(unittest.TestCase):
     def test_database_links(self):
         for name, url in ENDPOINTS.items():
             with self.subTest(database=name, url=url):
+                if name.startswith("BioCyc ") and os.environ.get("MCC_TEST_BIOCYC") != "1":
+                    self.skipTest("Optional BioCyc endpoint; set MCC_TEST_BIOCYC=1 to check")
                 try:
                     # Streaming closes the connection after headers, avoiding
                     # downloading the large MetaNetX tables just for this check.
