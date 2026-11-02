@@ -34,7 +34,7 @@ def visual_report(curator, filename=None, ax = None, size = None, dpi = 400, **k
     inner_vals = grouped_report.groupby("Inferrence Type")["Count"].sum()
 
     # 4 colors or less:
-    cmap = cm.get_cmap("tab20b")
+    cmap = plt.get_cmap("tab20b")
     inner_color_pos = np.array([i * 4 for i in range(len(inner_vals))]) + 4
     outer_color_pos = np.array([(i * 4) + np.arange(1, len(out_vals) + 1)  + 4 for i, out_vals in enumerate(outer_vals)], dtype=object)
 

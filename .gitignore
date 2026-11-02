@@ -5,5 +5,7 @@ Example/data/
 **/*.egg-info/
 **/*.pyc
 
+**/build/
+
 # exclude locally cached data files
 **/data/**
